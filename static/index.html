@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>File Sharing Platform</title>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #1f2937;
+            color: white;
+            padding: 22px 40px;
+        }
+
+        header h1 {
+            font-size: 28px;
+        }
+
+        header p {
+            margin-top: 6px;
+            color: #cbd5e1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 22px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            margin-bottom: 18px;
+            color: #1f2937;
+        }
+
+        .upload-box {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="file"],
+        select,
+        button {
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .danger:hover {
+            background: #b91c1c;
+        }
+
+        .success {
+            background: #16a34a;
+        }
+
+        .success:hover {
+            background: #15803d;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            background: #eef2ff;
+            display: none;
+        }
+
+        .progress-container {
+            margin-top: 18px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #2563eb;
+            transition: width 0.2s;
+        }
+
+        .progress-text {
+            margin-top: 8px;
+            font-size: 14px;
+        }
+
+        .nodes {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .node {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .node h3 {
+            margin-bottom: 10px;
+        }
+
+        .healthy {
+            color: #16a34a;
+            font-weight: bold;
+        }
+
+        .failed {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .stat {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat h3 {
+            font-size: 28px;
+            color: #2563eb;
+        }
+
+        .stat p {
+            margin-top: 5px;
+            color: #64748b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #f1f5f9;
+        }
+
+        .small-button {
+            padding: 6px 10px;
+            margin: 2px;
+            font-size: 12px;
+        }
+
+        .event {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .event strong {
+            color: #2563eb;
+        }
+
+        .resume-box {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff7ed;
+            border-radius: 8px;
+            display: none;
+        }
+
+        @media (max-width: 800px) {
+
+            .nodes {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<header>
+
+    <h1>📁 File Sharing Platform</h1>
+
+    <p>
+        Event-Driven Local Cloud Storage System
+    </p>
+
+</header>
+
+
+<div class="container">
+
+
+    <!-- ========================================= -->
+    <!-- UPLOAD -->
+    <!-- ========================================= -->
+
+    <div class="card">
+
+        <h2>📤 Upload File</h2>
+
+
+        <div class="upload-box">
+
+            <input
+                type="file"
+                id="fileInput"
+            >
+
+
+            <select id="policy">
+
+                <option value="public">
+                    Public
+                </option>
+
+                <option value="private">
+                    Private
+                </option>
+
+                <option value="read">
+                    Read
+                </option>
+
+                <option value="write">
+                    Write
+                </option>
+
+            </select>
+
+
+            <button
+                id="uploadButton"
+                onclick="startUpload()">
+
+                Upload
+
+            </button>
+
+        </div>
+
+
+        <div
+            id="uploadMessage"
+            class="message">
+        </div>
+
+
+        <div
+            id="progressContainer"
+            class="progress-container">
+
+            <div class="progress-bar">
+
+                <div
+                    id="progressFill"
+                    class="progress-fill">
+                </div>
+
+            </div>
+
+
+            <div
+                id="progressText"
+                class="progress-text">
+
+                0%
+
+            </div>
+
+        </div>
+
+
+        <div
+            id="resumeBox"
+            class="resume-box">
+
+            <strong>
+                Upload interrupted.
+            </strong>
+
+            <p id="resumeText">
+                You can resume the upload.
+            </p>
+
+            <br>
+
+            <button
+                class="success"
+                onclick="resumeUpload()">
+
+                Resume Upload
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- PERFORMANCE -->
+    <!-- ========================================= -->
+
+    <div class="card">
+
+        <h2>📊 Performance Statistics</h2>
+
+
+        <div class="stats">
+
+
+            <div class="stat">
+
+                <h3 id="totalFiles">
+                    0
+                </h3>
+
+                <p>Total Files</p>
+
+            </div>
+
+
+            <div class="stat">
+
+                <h3 id="completedFiles">
+                    0
+                </h3>
+
+                <p>Completed</p>
+
+            </div>
+
+
+            <div class="stat">
+
+                <h3 id="downloads">
+                    0
+                </h3>
+
+                <p>Downloads</p>
+
+            </div>
+
+
+            <div class="stat">
+
+                <h3 id="storageSize">
+                    0 Bytes
+                </h3>
+
+                <p>Total Storage</p>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- STORAGE NODES -->
+    <!-- ========================================= -->
+
+    <div class="card">
+
+        <h2>🖥️ Storage Nodes</h2>
+
+
+        <div
+            id="nodes"
+            class="nodes">
+        </div>
+
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- FILES -->
+    <!-- ========================================= -->
+
+    <div class="card">
+
+        <h2>📂 Available Files</h2>
+
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>File Name</th>
+
+                    <th>Size</th>
+
+                    <th>Status</th>
+
+                    <th>Node</th>
+
+                    <th>Policy</th>
+
+                    <th>Downloads</th>
+
+                    <th>Action</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="fileTable">
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- ========================================= -->
+    <!-- EVENTS -->
+    <!-- ========================================= -->
+
+    <div class="card">
+
+        <h2>⚡ Event Log</h2>
+
+
+        <div id="events">
+
+        </div>
+
+    </div>
+
+
+</div>
+
+
+<script>
+
+
+// ==================================================
+// SETTINGS
+// ==================================================
+
+// 1 MB chunks
+
+const CHUNK_SIZE =
+    1024 * 1024;
+
+
+// Current resumable upload
+
+let currentUpload = null;
+
+
+// ==================================================
+// NORMAL UPLOAD
+// ==================================================
+
+async function normalUpload(
+    file,
+    policy
+) {
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "file",
+        file
+    );
+
+
+    formData.append(
+        "access_policy",
+        policy
+    );
+
+
+    const response =
+        await fetch(
+            "/upload",
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+
+
+    const data =
+        await response.json();
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            data.detail ||
+            "Upload failed"
+        );
+
+    }
+
+
+    return data;
+
+}
+
+
+// ==================================================
+// START UPLOAD
+// ==================================================
+
+async function startUpload() {
+
+    const fileInput =
+        document.getElementById(
+            "fileInput"
+        );
+
+
+    const policy =
+        document.getElementById(
+            "policy"
+        ).value;
+
+
+    const message =
+        document.getElementById(
+            "uploadMessage"
+        );
+
+
+    const button =
+        document.getElementById(
+            "uploadButton"
+        );
+
+
+    const file =
+        fileInput.files[0];
+
+
+    if (!file) {
+
+        message.style.display =
+            "block";
+
+        message.innerText =
+            "Please select a file first.";
+
+        return;
+
+    }
+
+
+    message.style.display =
+        "block";
+
+
+    message.innerText =
+        "Preparing upload...";
+
+
+    button.disabled =
+        true;
+
+
+    /*
+        Files smaller than 10 MB use
+        the existing normal upload API.
+
+        Larger files use resumable upload.
+    */
+
+    if (file.size < 10 * 1024 * 1024) {
+
+        try {
+
+            const data =
+                await normalUpload(
+                    file,
+                    policy
+                );
+
+
+            message.innerText =
+                "✅ File uploaded successfully!";
+
+
+            fileInput.value = "";
+
+
+            loadAll();
+
+
+        } catch (error) {
+
+            message.innerText =
+                "❌ " +
+                error.message;
+
+        }
+
+
+        button.disabled =
+            false;
+
+        return;
+
+    }
+
+
+    // Large file
+
+    await startResumableUpload(
+        file,
+        policy
+    );
+
+
+    button.disabled =
+        false;
+
+}
+
+
+// ==================================================
+// START RESUMABLE UPLOAD
+// ==================================================
+
+async function startResumableUpload(
+    file,
+    policy
+) {
+
+    const message =
+        document.getElementById(
+            "uploadMessage"
+        );
+
+
+    const totalChunks =
+        Math.ceil(
+            file.size /
+            CHUNK_SIZE
+        );
+
+
+    try {
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "filename",
+            file.name
+        );
+
+
+        formData.append(
+            "total_chunks",
+            totalChunks
+        );
+
+
+        const response =
+            await fetch(
+                "/resumable/start",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                "Could not start upload"
+            );
+
+        }
+
+
+        currentUpload = {
+
+            upload_id:
+                data.upload_id,
+
+            file:
+                file,
+
+            policy:
+                policy,
+
+            totalChunks:
+                totalChunks,
+
+            completedChunks:
+                []
+
+        };
+
+
+        localStorage.setItem(
+            "resumableUpload",
+            JSON.stringify({
+                upload_id:
+                    data.upload_id,
+
+                filename:
+                    file.name,
+
+                totalChunks:
+                    totalChunks
+            })
+        );
+
+
+        document.getElementById(
+            "resumeBox"
+        ).style.display =
+            "none";
+
+
+        await uploadRemainingChunks();
+
+
+    } catch (error) {
+
+        message.innerText =
+            "❌ " +
+            error.message;
+
+    }
+
+}
+
+
+// ==================================================
+// UPLOAD REMAINING CHUNKS
+// ==================================================
+
+async function uploadRemainingChunks() {
+
+    if (!currentUpload) {
+
+        return;
+
+    }
+
+
+    const upload =
+        currentUpload;
+
+
+    const file =
+        upload.file;
+
+
+    const message =
+        document.getElementById(
+            "uploadMessage"
+        );
+
+
+    const progressContainer =
+        document.getElementById(
+            "progressContainer"
+        );
+
+
+    const progressFill =
+        document.getElementById(
+            "progressFill"
+        );
+
+
+    const progressText =
+        document.getElementById(
+            "progressText"
+        );
+
+
+    progressContainer.style.display =
+        "block";
+
+
+    try {
+
+        // Ask server which chunks already exist
+
+        const statusResponse =
+            await fetch(
+                `/resumable/${upload.upload_id}/status`
+            );
+
+
+        const status =
+            await statusResponse.json();
+
+
+        if (!statusResponse.ok) {
+
+            throw new Error(
+                status.detail ||
+                "Could not get upload status"
+            );
+
+        }
+
+
+        const completed =
+            new Set(
+                status.completed_chunks
+            );
+
+
+        upload.completedChunks =
+            [...completed];
+
+
+        for (
+            let index = 0;
+            index < upload.totalChunks;
+            index++
+        ) {
+
+
+            // Skip chunks already uploaded
+
+            if (
+                completed.has(index)
+            ) {
+
+                updateProgress(
+                    completed.size,
+                    upload.totalChunks
+                );
+
+                continue;
+
+            }
+
+
+            const start =
+                index * CHUNK_SIZE;
+
+
+            const end =
+                Math.min(
+                    start + CHUNK_SIZE,
+                    file.size
+                );
+
+
+            const chunk =
+                file.slice(
+                    start,
+                    end
+                );
+
+
+            const formData =
+                new FormData();
+
+
+            formData.append(
+                "file",
+                chunk,
+                `chunk_${index}`
+            );
+
+
+            message.innerText =
+                `Uploading chunk ${index + 1} of ${upload.totalChunks}...`;
+
+
+            const response =
+                await fetch(
+                    `/resumable/${upload.upload_id}/chunk/${index}`,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    "Chunk upload failed"
+                );
+
+            }
+
+
+            completed.add(index);
+
+
+            updateProgress(
+                completed.size,
+                upload.totalChunks
+            );
+
+        }
+
+
+        // All chunks uploaded
+
+        message.innerText =
+            "All chunks uploaded. Reassembling file...";
+
+
+        const completeResponse =
+            await fetch(
+                `/resumable/${upload.upload_id}/complete`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+        const completeData =
+            await completeResponse.json();
+
+
+        if (!completeResponse.ok) {
+
+            throw new Error(
+                completeData.detail ||
+                "Could not complete upload"
+            );
+
+        }
+
+
+        message.innerText =
+            "✅ Large file uploaded successfully!";
+
+
+        progressFill.style.width =
+            "100%";
+
+
+        progressText.innerText =
+            "100% - Upload complete";
+
+
+        currentUpload =
+            null;
+
+
+        localStorage.removeItem(
+            "resumableUpload"
+        );
+
+
+        document.getElementById(
+            "fileInput"
+        ).value = "";
+
+
+        loadAll();
+
+
+    } catch (error) {
+
+        message.innerText =
+            "⚠️ Upload interrupted: " +
+            error.message;
+
+
+        showResumeOption();
+
+    }
+
+}
+
+
+// ==================================================
+// UPDATE PROGRESS
+// ==================================================
+
+function updateProgress(
+    completed,
+    total
+) {
+
+    const percentage =
+        Math.round(
+            (completed / total) * 100
+        );
+
+
+    document.getElementById(
+        "progressFill"
+    ).style.width =
+        percentage + "%";
+
+
+    document.getElementById(
+        "progressText"
+    ).innerText =
+        `${percentage}% - ${completed} / ${total} chunks`;
+
+}
+
+
+// ==================================================
+// SHOW RESUME OPTION
+// ==================================================
+
+function showResumeOption() {
+
+    if (!currentUpload) {
+
+        return;
+
+    }
+
+
+    const box =
+        document.getElementById(
+            "resumeBox"
+        );
+
+
+    const text =
+        document.getElementById(
+            "resumeText"
+        );
+
+
+    box.style.display =
+        "block";
+
+
+    text.innerText =
+        `Upload session for "${currentUpload.file.name}" is saved. You can resume it.`;
+
+}
+
+
+// ==================================================
+// RESUME UPLOAD
+// ==================================================
+
+async function resumeUpload() {
+
+    const saved =
+        localStorage.getItem(
+            "resumableUpload"
+        );
+
+
+    if (!saved) {
+
+        alert(
+            "No resumable upload found."
+        );
+
+        return;
+
+    }
+
+
+    const savedData =
+        JSON.parse(saved);
+
+
+    const fileInput =
+        document.getElementById(
+            "fileInput"
+        );
+
+
+    const file =
+        fileInput.files[0];
+
+
+    if (!file) {
+
+        alert(
+            "Please select the same file again to resume."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        file.name !==
+        savedData.filename
+    ) {
+
+        alert(
+            "Please select the original file: " +
+            savedData.filename
+        );
+
+        return;
+
+    }
+
+
+    currentUpload = {
+
+        upload_id:
+            savedData.upload_id,
+
+        file:
+            file,
+
+        policy:
+            "public",
+
+        totalChunks:
+            savedData.totalChunks,
+
+        completedChunks:
+            []
+
+    };
+
+
+    document.getElementById(
+        "resumeBox"
+    ).style.display =
+        "none";
+
+
+    await uploadRemainingChunks();
+
+}
+
+
+// ==================================================
+// DOWNLOAD FILE
+// ==================================================
+
+function downloadFile(
+    fileId
+) {
+
+    window.open(
+        "/download/" +
+        fileId,
+        "_blank"
+    );
+
+}
+
+
+// ==================================================
+// DELETE FILE
+// ==================================================
+
+async function deleteFile(
+    fileId,
+    fileName
+) {
+
+    const confirmed =
+        confirm(
+            "Are you sure you want to delete " +
+            fileName +
+            "?"
+        );
+
+
+    if (!confirmed) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/files/" +
+                fileId,
+                {
+                    method: "DELETE"
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (response.ok) {
+
+            alert(
+                "File deleted successfully!"
+            );
+
+
+            loadAll();
+
+        } else {
+
+            alert(
+                "Delete failed: " +
+                (
+                    data.detail ||
+                    "Unknown error"
+                )
+            );
+
+        }
+
+    } catch (error) {
+
+        alert(
+            "Server error while deleting file."
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// LOAD FILES
+// ==================================================
+
+async function loadFiles() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/files"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        const table =
+            document.getElementById(
+                "fileTable"
+            );
+
+
+        table.innerHTML = "";
+
+
+        data.files.forEach(
+            file => {
+
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+
+                row.innerHTML = `
+
+                    <td>
+                        ${file.original_name}
+                    </td>
+
+                    <td>
+                        ${formatBytes(file.size)}
+                    </td>
+
+                    <td>
+                        ${file.status}
+                    </td>
+
+                    <td>
+                        ${file.node}
+                    </td>
+
+                    <td>
+                        ${file.access_policy}
+                    </td>
+
+                    <td>
+                        ${file.download_count}
+                    </td>
+
+                    <td>
+
+                        <button
+                            class="small-button"
+                            onclick="downloadFile('${file.file_id}')">
+
+                            Download
+
+                        </button>
+
+
+                        <button
+                            class="small-button danger"
+                            onclick="deleteFile('${file.file_id}', '${file.original_name}')">
+
+                            Delete
+
+                        </button>
+
+                    </td>
+
+                `;
+
+
+                table.appendChild(
+                    row
+                );
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Could not load files",
+            error
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// LOAD NODES
+// ==================================================
+
+async function loadNodes() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/storage/status"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        const container =
+            document.getElementById(
+                "nodes"
+            );
+
+
+        container.innerHTML = "";
+
+
+        data.nodes.forEach(
+            node => {
+
+                const nodeBox =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                nodeBox.className =
+                    "node";
+
+
+                const statusClass =
+                    node.status ===
+                    "healthy"
+                    ? "healthy"
+                    : "failed";
+
+
+                nodeBox.innerHTML = `
+
+                    <h3>
+                        ${node.node_name}
+                    </h3>
+
+                    <p class="${statusClass}">
+                        ${node.status.toUpperCase()}
+                    </p>
+
+                    <p>
+                        Files:
+                        ${node.current_files}
+                    </p>
+
+                    <br>
+
+
+                    ${
+                        node.status === "healthy"
+
+                        ?
+
+                        `<button
+                            class="danger small-button"
+                            onclick="failNode('${node.node_name}')">
+
+                            Simulate Failure
+
+                        </button>`
+
+                        :
+
+                        `<button
+                            class="success small-button"
+                            onclick="recoverNode('${node.node_name}')">
+
+                            Recover Node
+
+                        </button>`
+                    }
+
+                `;
+
+
+                container.appendChild(
+                    nodeBox
+                );
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Could not load nodes",
+            error
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// FAIL NODE
+// ==================================================
+
+async function failNode(
+    nodeName
+) {
+
+    await fetch(
+        `/nodes/${nodeName}/fail`,
+        {
+            method: "POST"
+        }
+    );
+
+
+    loadAll();
+
+}
+
+
+// ==================================================
+// RECOVER NODE
+// ==================================================
+
+async function recoverNode(
+    nodeName
+) {
+
+    await fetch(
+        `/nodes/${nodeName}/recover`,
+        {
+            method: "POST"
+        }
+    );
+
+
+    loadAll();
+
+}
+
+
+// ==================================================
+// LOAD EVENTS
+// ==================================================
+
+async function loadEvents() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/events"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        const container =
+            document.getElementById(
+                "events"
+            );
+
+
+        container.innerHTML = "";
+
+
+        data.events.forEach(
+            event => {
+
+                const div =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                div.className =
+                    "event";
+
+
+                div.innerHTML = `
+
+                    <strong>
+                        ${event.event_type}
+                    </strong>
+
+                    -
+                    ${event.message}
+
+                    <br>
+
+                    <small>
+                        ${event.created_at}
+                    </small>
+
+                `;
+
+
+                container.appendChild(
+                    div
+                );
+
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Could not load events",
+            error
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// PERFORMANCE
+// ==================================================
+
+async function loadPerformance() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/performance"
+            );
+
+
+        const data =
+            await response.json();
+
+
+        document.getElementById(
+            "totalFiles"
+        ).innerText =
+            data.total_files;
+
+
+        document.getElementById(
+            "completedFiles"
+        ).innerText =
+            data.completed_files;
+
+
+        document.getElementById(
+            "downloads"
+        ).innerText =
+            data.total_downloads;
+
+
+        document.getElementById(
+            "storageSize"
+        ).innerText =
+            formatBytes(
+                data.total_storage_bytes
+            );
+
+    } catch (error) {
+
+        console.error(
+            "Could not load performance",
+            error
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// FORMAT FILE SIZE
+// ==================================================
+
+function formatBytes(
+    bytes
+) {
+
+    if (
+        bytes === 0
+    ) {
+
+        return "0 Bytes";
+
+    }
+
+
+    const units = [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB"
+    ];
+
+
+    const i =
+        Math.floor(
+            Math.log(bytes) /
+            Math.log(1024)
+        );
+
+
+    return (
+        parseFloat(
+            (
+                bytes /
+                Math.pow(
+                    1024,
+                    i
+                )
+            ).toFixed(2)
+        )
+        +
+        " "
+        +
+        units[i]
+    );
+
+}
+
+
+// ==================================================
+// LOAD EVERYTHING
+// ==================================================
+
+function loadAll() {
+
+    loadFiles();
+
+    loadNodes();
+
+    loadEvents();
+
+    loadPerformance();
+
+}
+
+
+// ==================================================
+// CHECK FOR PREVIOUS UPLOAD
+// ==================================================
+
+function checkPreviousUpload() {
+
+    const saved =
+        localStorage.getItem(
+            "resumableUpload"
+        );
+
+
+    if (!saved) {
+
+        return;
+
+    }
+
+
+    try {
+
+        const data =
+            JSON.parse(saved);
+
+
+        document.getElementById(
+            "resumeBox"
+        ).style.display =
+            "block";
+
+
+        document.getElementById(
+            "resumeText"
+        ).innerText =
+            `Previous upload found: ${data.filename}. Select the same file and click Resume Upload.`;
+
+    } catch (error) {
+
+        localStorage.removeItem(
+            "resumableUpload"
+        );
+
+    }
+
+}
+
+
+// ==================================================
+// INITIAL LOAD
+// ==================================================
+
+loadAll();
+
+checkPreviousUpload();
+
+
+// Refresh dashboard every 5 seconds
+
+setInterval(
+    loadAll,
+    5000
+);
+
+
+</script>
+
+
+</body>
+
+</html>
