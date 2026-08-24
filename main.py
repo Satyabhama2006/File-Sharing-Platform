@@ -2,7 +2,7 @@ import os
 import time
 import uuid
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -85,7 +85,8 @@ def home():
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    access_policy: str = Form("public")
+    access_policy: str = Form("public"),
+    x_user: str = Header("guest")
 ):
 
     start_time = time.time()
@@ -134,7 +135,8 @@ async def upload_file(
         original_name=file.filename,
         stored_name=stored_name,
         node=node,
-        access_policy=access_policy
+        access_policy=access_policy,
+        owner=x_user
     )
 
     try:
@@ -160,7 +162,7 @@ async def upload_file(
         event_system.publish(
             "FILE_UPLOADED",
             file_id,
-            f"{file.filename} uploaded to {node}"
+            f"{file.filename} uploaded to {node} by {x_user}"
         )
 
         upload_time = round(
@@ -176,6 +178,7 @@ async def upload_file(
             "size": file_size,
             "node": node,
             "access_policy": access_policy,
+            "owner": x_user,
             "upload_time_seconds": upload_time
         }
 
@@ -203,7 +206,10 @@ async def upload_file(
 # --------------------------------------------------
 
 @app.get("/download/{file_id}")
-def download_file(file_id: str):
+def download_file(
+    file_id: str,
+    x_user: str = Header("guest")
+):
 
     file_info = get_file(file_id)
 
@@ -212,6 +218,13 @@ def download_file(file_id: str):
         raise HTTPException(
             status_code=404,
             detail="File not found"
+        )
+
+    # Enforce access policy
+    if file_info.get("access_policy") == "private" and file_info.get("owner") != x_user:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: private file"
         )
 
     if file_info["status"] != "completed":
@@ -240,7 +253,7 @@ def download_file(file_id: str):
     event_system.publish(
         "FILE_DOWNLOADED",
         file_id,
-        f"{file_info['original_name']} downloaded"
+        f"{file_info['original_name']} downloaded by {x_user}"
     )
 
     return FileResponse(
@@ -255,10 +268,20 @@ def download_file(file_id: str):
 # --------------------------------------------------
 
 @app.get("/files")
-def list_files():
+def list_files(x_user: str = Header("guest")):
+
+    all_files = get_all_files()
+    filtered = []
+
+    for f in all_files:
+        if f.get("access_policy") == "private":
+            if f.get("owner") == x_user:
+                filtered.append(f)
+        else:
+            filtered.append(f)
 
     return {
-        "files": get_all_files()
+        "files": filtered
     }
 
 
@@ -267,7 +290,10 @@ def list_files():
 # --------------------------------------------------
 
 @app.get("/files/{file_id}")
-def file_information(file_id: str):
+def file_information(
+    file_id: str,
+    x_user: str = Header("guest")
+):
 
     file_info = get_file(
         file_id
@@ -278,6 +304,13 @@ def file_information(file_id: str):
         raise HTTPException(
             status_code=404,
             detail="File not found"
+        )
+
+    # Enforce access policy
+    if file_info.get("access_policy") == "private" and file_info.get("owner") != x_user:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: private file"
         )
 
     return file_info
@@ -396,25 +429,25 @@ def performance():
     total_files = len(files)
 
     total_downloads = sum(
-        file["download_count"]
+        file.get("download_count", 0)
         for file in files
     )
 
     total_size = sum(
-        file["size"]
+        file.get("size", 0)
         for file in files
     )
 
     completed_files = sum(
         1
         for file in files
-        if file["status"] == "completed"
+        if file.get("status") == "completed"
     )
 
     failed_files = sum(
         1
         for file in files
-        if file["status"] == "failed"
+        if file.get("status") == "failed"
     )
 
     return {
@@ -431,7 +464,10 @@ def performance():
 # --------------------------------------------------
 
 @app.delete("/files/{file_id}")
-def delete_file(file_id: str):
+def delete_file(
+    file_id: str,
+    x_user: str = Header("guest")
+):
 
     file_info = get_file(
         file_id
@@ -442,6 +478,14 @@ def delete_file(file_id: str):
         raise HTTPException(
             status_code=404,
             detail="File not found"
+        )
+
+    # Restrict delete: only the owner can delete
+    owner = file_info.get("owner", "guest")
+    if owner != "guest" and owner != x_user:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: only the owner can delete this file"
         )
 
     deleted = delete_stored_file(
@@ -463,7 +507,7 @@ def delete_file(file_id: str):
     event_system.publish(
         "FILE_DELETED",
         file_id,
-        f"{file_info['original_name']} deleted"
+        f"{file_info['original_name']} deleted by {x_user}"
     )
 
     return {
@@ -486,7 +530,9 @@ def delete_file(file_id: str):
 @app.post("/resumable/start")
 def start_resumable_upload(
     filename: str = Form(...),
-    total_chunks: int = Form(...)
+    total_chunks: int = Form(...),
+    access_policy: str = Form("public"),
+    x_user: str = Header("guest")
 ):
 
     if total_chunks <= 0:
@@ -496,17 +542,33 @@ def start_resumable_upload(
             detail="total_chunks must be greater than 0"
         )
 
+    allowed_policies = [
+        "public",
+        "private",
+        "read",
+        "write"
+    ]
+
+    if access_policy not in allowed_policies:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid access policy"
+        )
+
     try:
 
         session = create_upload_session(
             filename,
-            total_chunks
+            total_chunks,
+            access_policy=access_policy,
+            owner=x_user
         )
 
         event_system.publish(
             "UPLOAD_STARTED",
             session["upload_id"],
-            f"Resumable upload started: {filename}"
+            f"Resumable upload started: {filename} by {x_user}"
         )
 
         return {
@@ -621,7 +683,8 @@ def finish_resumable_upload(
             original_name=result["filename"],
             stored_name=stored_name,
             node=result["node"],
-            access_policy="public"
+            access_policy=result["access_policy"],
+            owner=result["owner"]
         )
 
         update_file_status(
@@ -634,7 +697,7 @@ def finish_resumable_upload(
             "FILE_UPLOADED",
             file_id,
             f"Resumable upload completed: "
-            f"{result['filename']}"
+            f"{result['filename']} by {result['owner']}"
         )
 
         return {

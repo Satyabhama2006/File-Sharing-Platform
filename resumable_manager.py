@@ -26,7 +26,9 @@ def initialize_resumable_storage():
 
 def create_upload_session(
     filename,
-    total_chunks
+    total_chunks,
+    access_policy="public",
+    owner="guest"
 ):
 
     initialize_resumable_storage()
@@ -55,6 +57,8 @@ def create_upload_session(
         "filename": filename,
         "total_chunks": int(total_chunks),
         "node": node,
+        "access_policy": access_policy,
+        "owner": owner,
         "completed_chunks": []
     }
 
@@ -326,7 +330,9 @@ def complete_upload(upload_id):
         "filename": filename,
         "stored_name": stored_name,
         "node": node,
-        "file_size": file_size
+        "file_size": file_size,
+        "access_policy": session.get("access_policy", "public"),
+        "owner": session.get("owner", "guest")
     }
 
 

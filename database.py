@@ -36,7 +36,8 @@ def create_file_record(
     original_name,
     stored_name,
     node,
-    access_policy="public"
+    access_policy="public",
+    owner="guest"
 ):
     now = datetime.now().isoformat()
 
@@ -48,6 +49,7 @@ def create_file_record(
         "status": "uploading",
         "node": node,
         "access_policy": access_policy,
+        "owner": owner,
         "created_at": now,
         "updated_at": now,
         "download_count": 0

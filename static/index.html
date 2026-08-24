@@ -67,6 +67,7 @@
         }
 
         input[type="file"],
+        input[type="text"],
         select,
         button {
             padding: 10px 14px;
@@ -247,19 +248,31 @@
 
 <body>
 
-
 <header>
 
     <h1>📁 File Sharing Platform</h1>
 
     <p>
-        Event-Driven Local Cloud Storage System
+        Event-Driven Local Cloud Storage System with Policy Control
     </p>
 
 </header>
 
 
 <div class="container">
+
+    <!-- ========================================= -->
+    <!-- USER AUTHENTICATION -->
+    <!-- ========================================= -->
+    <div class="card">
+        <h2>👤 User Authentication</h2>
+        <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
+            <label for="usernameInput" style="font-weight: bold;">Username:</label>
+            <input type="text" id="usernameInput" value="guest" style="padding: 10px; width: 180px; border-radius: 6px; border: 1px solid #ccc;">
+            <button onclick="changeUser()" style="padding: 10px 18px;">Switch User</button>
+            <span id="currentUserDisplay" style="font-weight: bold; margin-left: 10px; color: #2563eb;">Logged in as: guest</span>
+        </div>
+    </div>
 
 
     <!-- ========================================= -->
@@ -268,7 +281,7 @@
 
     <div class="card">
 
-        <h2>📤 Upload File</h2>
+        <h2>🚀 Upload File</h2>
 
 
         <div class="upload-box">
@@ -282,19 +295,19 @@
             <select id="policy">
 
                 <option value="public">
-                    Public
+                    Public (Read-only, anyone can access)
                 </option>
 
                 <option value="private">
-                    Private
+                    Private (Only Owner can access)
                 </option>
 
                 <option value="read">
-                    Read
+                    Read (Anyone can read/download)
                 </option>
 
                 <option value="write">
-                    Write
+                    Write (Anyone can read, modify/update)
                 </option>
 
             </select>
@@ -436,7 +449,7 @@
 
     <div class="card">
 
-        <h2>🖥️ Storage Nodes</h2>
+        <h2>⚙️ Storage Nodes</h2>
 
 
         <div
@@ -472,6 +485,8 @@
 
                     <th>Policy</th>
 
+                    <th>Owner</th>
+
                     <th>Downloads</th>
 
                     <th>Action</th>
@@ -496,34 +511,56 @@
 
     <div class="card">
 
-        <h2>⚡ Event Log</h2>
+        <h2>📜 Event Log</h2>
 
-
-        <div id="events">
-
+        <div id="events" style="max-height: 300px; overflow-y: auto;">
         </div>
 
     </div>
-
 
 </div>
 
 
 <script>
 
+// ==================================================
+// GLOBAL FETCH INTERCEPTOR FOR AUTHENTICATION
+// ==================================================
+const originalFetch = window.fetch;
+window.fetch = function(url, options = {}) {
+    options.headers = options.headers || {};
+    const currentUser = localStorage.getItem("username") || "guest";
+    
+    if (options.headers instanceof Headers) {
+        options.headers.set("X-User", currentUser);
+    } else {
+        options.headers["X-User"] = currentUser;
+    }
+    
+    return originalFetch(url, options);
+};
+
 
 // ==================================================
-// SETTINGS
+// USER CONFIGURATION
 // ==================================================
+function changeUser() {
+    const input = document.getElementById("usernameInput").value.trim() || "guest";
+    localStorage.setItem("username", input);
+    document.getElementById("currentUserDisplay").innerText = "Logged in as: " + input;
+    loadAll();
+}
 
-// 1 MB chunks
+// Initial setup on load
+const savedUser = localStorage.getItem("username") || "guest";
+document.getElementById("usernameInput").value = savedUser;
+document.getElementById("currentUserDisplay").innerText = "Logged in as: " + savedUser;
 
-const CHUNK_SIZE =
-    1024 * 1024;
 
-
-// Current resumable upload
-
+// ==================================================
+// CONSTANTS & STATE
+// ==================================================
+const CHUNK_SIZE = 1024 * 1024 * 5; // 5 MB chunks
 let currentUpload = null;
 
 
@@ -552,37 +589,60 @@ async function normalUpload(
     );
 
 
-    const response =
-        await fetch(
-            "/upload",
-            {
-                method: "POST",
-                body: formData
-            }
-        );
+    try {
+
+        const response =
+            await fetch(
+                "/upload",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
 
 
-    const data =
-        await response.json();
+        const data =
+            await response.json();
 
 
-    if (!response.ok) {
+        const message =
+            document.getElementById(
+                "uploadMessage"
+            );
 
-        throw new Error(
-            data.detail ||
-            "Upload failed"
-        );
+
+        if (response.ok) {
+
+            message.className =
+                "message success";
+
+            message.innerText =
+                `Upload successful! File ID: ${data.file_id}`;
+
+
+            loadAll();
+
+        } else {
+
+            message.className =
+                "message danger";
+
+            message.innerText =
+                `Upload failed: ${data.detail}`;
+
+        }
+
+    } catch (error) {
+
+        console.error(error);
 
     }
-
-
-    return data;
 
 }
 
 
 // ==================================================
-// START UPLOAD
+// START UPLOAD DECISION
 // ==================================================
 
 async function startUpload() {
@@ -602,99 +662,73 @@ async function startUpload() {
     const message =
         document.getElementById(
             "uploadMessage"
-        );
+          );
 
 
-    const button =
-        document.getElementById(
-            "uploadButton"
-        );
+      const button =
+          document.getElementById(
+              "uploadButton"
+          );
 
 
-    const file =
-        fileInput.files[0];
+      const file =
+          fileInput.files[0];
 
 
-    if (!file) {
+      if (!file) {
 
-        message.style.display =
-            "block";
+          message.style.display =
+              "block";
 
-        message.innerText =
-            "Please select a file first.";
+          message.innerText =
+              "Please select a file first.";
 
-        return;
+          return;
 
-    }
-
-
-    message.style.display =
-        "block";
+      }
 
 
-    message.innerText =
-        "Preparing upload...";
+      message.style.display =
+          "block";
 
 
-    button.disabled =
-        true;
+      message.innerText =
+          "Preparing upload...";
 
 
-    /*
-        Files smaller than 10 MB use
-        the existing normal upload API.
-
-        Larger files use resumable upload.
-    */
-
-    if (file.size < 10 * 1024 * 1024) {
-
-        try {
-
-            const data =
-                await normalUpload(
-                    file,
-                    policy
-                );
+      button.disabled =
+          true;
 
 
-            message.innerText =
-                "✅ File uploaded successfully!";
+      /*
+          Files smaller than 10 MB use
+          the existing normal upload API.
+
+          Larger files use resumable upload.
+      */
+
+      if (file.size <= 1024 * 1024 * 10) {
+
+          await normalUpload(
+              file,
+              policy
+          );
+
+          button.disabled =
+              false;
+
+      } else {
+
+          await startResumableUpload(
+              file,
+              policy
+          );
 
 
-            fileInput.value = "";
+          button.disabled =
+              false;
 
-
-            loadAll();
-
-
-        } catch (error) {
-
-            message.innerText =
-                "❌ " +
-                error.message;
-
-        }
-
-
-        button.disabled =
-            false;
-
-        return;
-
-    }
-
-
-    // Large file
-
-    await startResumableUpload(
-        file,
-        policy
-    );
-
-
-    button.disabled =
-        false;
+      }
 
 }
 
@@ -738,6 +772,11 @@ async function startResumableUpload(
             totalChunks
         );
 
+        formData.append(
+            "access_policy",
+            policy
+        );
+
 
         const response =
             await fetch(
@@ -755,63 +794,46 @@ async function startResumableUpload(
 
         if (!response.ok) {
 
-            throw new Error(
-                data.detail ||
-                "Could not start upload"
-            );
+            message.className =
+                "message danger";
+
+            message.innerText =
+                `Start failed: ${data.detail}`;
+
+            return;
 
         }
 
 
         currentUpload = {
-
-            upload_id:
-                data.upload_id,
-
-            file:
-                file,
-
-            policy:
-                policy,
-
-            totalChunks:
-                totalChunks,
-
-            completedChunks:
-                []
-
+            file: file,
+            upload_id: data.upload_id,
+            total_chunks: totalChunks,
+            completed_chunks: []
         };
 
 
         localStorage.setItem(
             "resumableUpload",
             JSON.stringify({
-                upload_id:
-                    data.upload_id,
-
-                filename:
-                    file.name,
-
-                totalChunks:
-                    totalChunks
+                upload_id: data.upload_id,
+                filename: file.name,
+                total_chunks: totalChunks
             })
         );
 
 
         document.getElementById(
-            "resumeBox"
+            "progressContainer"
         ).style.display =
-            "none";
+            "block";
 
 
         await uploadRemainingChunks();
 
-
     } catch (error) {
 
-        message.innerText =
-            "❌ " +
-            error.message;
+        console.error(error);
 
     }
 
@@ -831,12 +853,16 @@ async function uploadRemainingChunks() {
     }
 
 
-    const upload =
-        currentUpload;
-
-
     const file =
-        upload.file;
+        currentUpload.file;
+
+
+    const uploadId =
+        currentUpload.upload_id;
+
+
+    const totalChunks =
+        currentUpload.total_chunks;
 
 
     const message =
@@ -845,35 +871,25 @@ async function uploadRemainingChunks() {
         );
 
 
-    const progressContainer =
-        document.getElementById(
-            "progressContainer"
-        );
-
-
-    const progressFill =
+    const fill =
         document.getElementById(
             "progressFill"
         );
 
 
-    const progressText =
+    const text =
         document.getElementById(
             "progressText"
         );
 
 
-    progressContainer.style.display =
-        "block";
-
-
     try {
 
-        // Ask server which chunks already exist
+        // Get actual completed chunks from server
 
         const statusResponse =
             await fetch(
-                `/resumable/${upload.upload_id}/status`
+                `/resumable/${uploadId}/status`
             );
 
 
@@ -883,45 +899,46 @@ async function uploadRemainingChunks() {
 
         if (!statusResponse.ok) {
 
-            throw new Error(
-                status.detail ||
-                "Could not get upload status"
-            );
+            message.className =
+                "message danger";
+
+            message.innerText =
+                `Status check failed: ${status.detail}`;
+
+            return;
 
         }
 
 
-        const completed =
-            new Set(
-                status.completed_chunks
-            );
+        currentUpload.completed_chunks =
+            status.completed_chunks;
 
 
-        upload.completedChunks =
-            [...completed];
+        let completed =
+            status.completed_chunks;
 
 
         for (
             let index = 0;
-            index < upload.totalChunks;
+            index < totalChunks;
             index++
         ) {
 
-
-            // Skip chunks already uploaded
-
             if (
-                completed.has(index)
+                completed.includes(
+                    index
+                )
             ) {
-
-                updateProgress(
-                    completed.size,
-                    upload.totalChunks
-                );
 
                 continue;
 
             }
+
+
+            message.innerText =
+                `Uploading chunk ` +
+                `${index + 1} of ` +
+                `${totalChunks}...`;
 
 
             const start =
@@ -930,8 +947,9 @@ async function uploadRemainingChunks() {
 
             const end =
                 Math.min(
-                    start + CHUNK_SIZE,
-                    file.size
+                    file.size,
+                    start +
+                    CHUNK_SIZE
                 );
 
 
@@ -949,17 +967,13 @@ async function uploadRemainingChunks() {
             formData.append(
                 "file",
                 chunk,
-                `chunk_${index}`
+                file.name
             );
-
-
-            message.innerText =
-                `Uploading chunk ${index + 1} of ${upload.totalChunks}...`;
 
 
             const response =
                 await fetch(
-                    `/resumable/${upload.upload_id}/chunk/${index}`,
+                    `/resumable/${uploadId}/chunk/${index}`,
                     {
                         method: "POST",
                         body: formData
@@ -967,40 +981,55 @@ async function uploadRemainingChunks() {
                 );
 
 
-            const data =
-                await response.json();
-
-
             if (!response.ok) {
 
-                throw new Error(
-                    data.detail ||
-                    "Chunk upload failed"
-                );
+                message.className =
+                    "message danger";
+
+                message.innerText =
+                    `Chunk upload failed. ` +
+                    `You can resume later.`;
+
+                return;
 
             }
 
 
-            completed.add(index);
+            const resData =
+                await response.json();
 
 
-            updateProgress(
-                completed.size,
-                upload.totalChunks
-            );
+            completed =
+                resData.completed_chunks;
+
+
+            const percentage =
+                Math.round(
+                    (completed.length /
+                    totalChunks) *
+                    100
+                );
+
+
+            fill.style.width =
+                `${percentage}%`;
+
+
+            text.innerText =
+                `${percentage}%`;
 
         }
 
 
-        // All chunks uploaded
+        // Finish upload
 
         message.innerText =
-            "All chunks uploaded. Reassembling file...";
+            "Finalizing upload...";
 
 
         const completeResponse =
             await fetch(
-                `/resumable/${upload.upload_id}/complete`,
+                `/resumable/${uploadId}/complete`,
                 {
                     method: "POST"
                 }
@@ -1011,53 +1040,56 @@ async function uploadRemainingChunks() {
             await completeResponse.json();
 
 
-        if (!completeResponse.ok) {
+        if (completeResponse.ok) {
 
-            throw new Error(
-                completeData.detail ||
-                "Could not complete upload"
+            message.className =
+                "message success";
+
+            message.innerText =
+                `Resumable upload completed! File ID: ${completeData.file_id}`;
+
+
+            localStorage.removeItem(
+                "resumableUpload"
             );
+
+
+            document.getElementById(
+                "resumeBox"
+            ).style.display =
+                "none";
+
+
+            document.getElementById(
+                "progressContainer"
+            ).style.display =
+                "none";
+
+
+            currentUpload = null;
+
+
+            loadAll();
+
+        } else {
+
+            message.className =
+                "message danger";
+
+            message.innerText =
+                `Finalize failed: ${completeData.detail}`;
 
         }
 
-
-        message.innerText =
-            "✅ Large file uploaded successfully!";
-
-
-        progressFill.style.width =
-            "100%";
-
-
-        progressText.innerText =
-            "100% - Upload complete";
-
-
-        currentUpload =
-            null;
-
-
-        localStorage.removeItem(
-            "resumableUpload"
-        );
-
-
-        document.getElementById(
-            "fileInput"
-        ).value = "";
-
-
-        loadAll();
-
-
     } catch (error) {
 
+        console.error(error);
+
+        message.className =
+            "message danger";
+
         message.innerText =
-            "⚠️ Upload interrupted: " +
-            error.message;
-
-
-        showResumeOption();
+            "Upload interrupted. You can resume later.";
 
     }
 
@@ -1065,71 +1097,7 @@ async function uploadRemainingChunks() {
 
 
 // ==================================================
-// UPDATE PROGRESS
-// ==================================================
-
-function updateProgress(
-    completed,
-    total
-) {
-
-    const percentage =
-        Math.round(
-            (completed / total) * 100
-        );
-
-
-    document.getElementById(
-        "progressFill"
-    ).style.width =
-        percentage + "%";
-
-
-    document.getElementById(
-        "progressText"
-    ).innerText =
-        `${percentage}% - ${completed} / ${total} chunks`;
-
-}
-
-
-// ==================================================
-// SHOW RESUME OPTION
-// ==================================================
-
-function showResumeOption() {
-
-    if (!currentUpload) {
-
-        return;
-
-    }
-
-
-    const box =
-        document.getElementById(
-            "resumeBox"
-        );
-
-
-    const text =
-        document.getElementById(
-            "resumeText"
-        );
-
-
-    box.style.display =
-        "block";
-
-
-    text.innerText =
-        `Upload session for "${currentUpload.file.name}" is saved. You can resume it.`;
-
-}
-
-
-// ==================================================
-// RESUME UPLOAD
+// RESUME UPLOAD FLOW
 // ==================================================
 
 async function resumeUpload() {
@@ -1142,100 +1110,121 @@ async function resumeUpload() {
 
     if (!saved) {
 
-        alert(
-            "No resumable upload found."
-        );
-
         return;
 
     }
 
 
-    const savedData =
-        JSON.parse(saved);
+    try {
+
+        const data =
+            JSON.parse(saved);
 
 
-    const fileInput =
+        const fileInput =
+            document.getElementById(
+                "fileInput"
+            );
+
+
+        const file =
+            fileInput.files[0];
+
+
+        const message =
+            document.getElementById(
+                "uploadMessage"
+            );
+
+
+        if (!file || file.name !== data.filename) {
+
+            message.style.display =
+                "block";
+
+            message.className =
+                "message danger";
+
+            message.innerText =
+                `Please select the correct file: ${data.filename}`;
+
+            return;
+
+        }
+
+
+        message.style.display =
+            "block";
+
+
+        message.innerText =
+            "Resuming upload...";
+
+
+        currentUpload = {
+            file: file,
+            upload_id: data.upload_id,
+            total_chunks: data.total_chunks,
+            completed_chunks: []
+        };
+
+
         document.getElementById(
-            "fileInput"
-        );
+            "progressContainer"
+        ).style.display =
+            "block";
 
 
-    const file =
-        fileInput.files[0];
+        await uploadRemainingChunks();
 
+    } catch (error) {
 
-    if (!file) {
-
-        alert(
-            "Please select the same file again to resume."
-        );
-
-        return;
+        console.error(error);
 
     }
-
-
-    if (
-        file.name !==
-        savedData.filename
-    ) {
-
-        alert(
-            "Please select the original file: " +
-            savedData.filename
-        );
-
-        return;
-
-    }
-
-
-    currentUpload = {
-
-        upload_id:
-            savedData.upload_id,
-
-        file:
-            file,
-
-        policy:
-            "public",
-
-        totalChunks:
-            savedData.totalChunks,
-
-        completedChunks:
-            []
-
-    };
-
-
-    document.getElementById(
-        "resumeBox"
-    ).style.display =
-        "none";
-
-
-    await uploadRemainingChunks();
 
 }
 
 
 // ==================================================
-// DOWNLOAD FILE
+// DOWNLOAD FILE (FETCH-BASED FOR CUSTOM HEADERS)
 // ==================================================
 
-function downloadFile(
-    fileId
-) {
-
-    window.open(
-        "/download/" +
-        fileId,
-        "_blank"
-    );
-
+async function downloadFile(fileId) {
+    try {
+        const response = await fetch(`/download/${fileId}`);
+        if (!response.ok) {
+            const err = await response.json();
+            alert("Download failed: " + (err.detail || response.statusText));
+            return;
+        }
+        
+        let filename = "download";
+        const disposition = response.headers.get("Content-Disposition");
+        if (disposition && disposition.indexOf("attachment") !== -1) {
+            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            const matches = filenameRegex.exec(disposition);
+            if (matches != null && matches[1]) { 
+                filename = matches[1].replace(/['"]/g, '');
+            }
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        loadAll();
+    } catch (e) {
+        console.error(e);
+        alert("Download error: " + e.message);
+    }
 }
 
 
@@ -1250,9 +1239,7 @@ async function deleteFile(
 
     const confirmed =
         confirm(
-            "Are you sure you want to delete " +
-            fileName +
-            "?"
+            `Delete ${fileName}?`
         );
 
 
@@ -1282,7 +1269,7 @@ async function deleteFile(
         if (response.ok) {
 
             alert(
-                "File deleted successfully!"
+                "File deleted"
             );
 
 
@@ -1291,20 +1278,14 @@ async function deleteFile(
         } else {
 
             alert(
-                "Delete failed: " +
-                (
-                    data.detail ||
-                    "Unknown error"
-                )
+                `Delete failed: ${data.detail}`
             );
 
         }
 
     } catch (error) {
 
-        alert(
-            "Server error while deleting file."
-        );
+        console.error(error);
 
     }
 
@@ -1367,6 +1348,10 @@ async function loadFiles() {
 
                     <td>
                         ${file.access_policy}
+                    </td>
+
+                    <td>
+                        ${file.owner || 'guest'}
                     </td>
 
                     <td>
