@@ -1,60 +1,34 @@
-import sqlite3
+import os
 from datetime import datetime
+from pymongo import MongoClient
 
-DB_NAME = "database.db"
+MONGO_URI = "mongodb+srv://sk5263748_db_user:J0JgYnYVAfN2LZX9@cluster0.ny90gvb.mongodb.net/"
+DB_NAME = "file_sharing_platform"
 
+# Global client
+client = MongoClient(MONGO_URI)
+db = client[DB_NAME]
 
-def get_connection():
-    return sqlite3.connect(DB_NAME)
+# Collections
+files_col = db["files"]
+events_col = db["events"]
+nodes_col = db["nodes"]
 
 
 def initialize_database():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS files (
-        file_id TEXT PRIMARY KEY,
-        original_name TEXT NOT NULL,
-        stored_name TEXT NOT NULL,
-        size INTEGER DEFAULT 0,
-        status TEXT DEFAULT 'uploading',
-        node TEXT,
-        access_policy TEXT DEFAULT 'public',
-        created_at TEXT,
-        updated_at TEXT,
-        download_count INTEGER DEFAULT 0
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_type TEXT,
-        file_id TEXT,
-        message TEXT,
-        created_at TEXT
-    )
-    """)
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS nodes (
-        node_name TEXT PRIMARY KEY,
-        status TEXT DEFAULT 'healthy',
-        current_files INTEGER DEFAULT 0
-    )
-    """)
-
     nodes = ["node1", "node2", "node3"]
 
     for node in nodes:
-        cursor.execute("""
-        INSERT OR IGNORE INTO nodes (node_name, status, current_files)
-        VALUES (?, 'healthy', 0)
-        """, (node,))
-
-    conn.commit()
-    conn.close()
+        nodes_col.update_one(
+            {"_id": node},
+            {
+                "$setOnInsert": {
+                    "status": "healthy",
+                    "current_files": 0
+                }
+            },
+            upsert=True
+        )
 
 
 def create_file_record(
@@ -64,230 +38,127 @@ def create_file_record(
     node,
     access_policy="public"
 ):
-    conn = get_connection()
-    cursor = conn.cursor()
-
     now = datetime.now().isoformat()
 
-    cursor.execute("""
-    INSERT INTO files
-    (file_id, original_name, stored_name, size, status,
-    node, access_policy, created_at, updated_at, download_count)
-    VALUES (?, ?, ?, 0, 'uploading', ?, ?, ?, ?, 0)
-    """, (
-        file_id,
-        original_name,
-        stored_name,
-        node,
-        access_policy,
-        now,
-        now
-    ))
-
-    conn.commit()
-    conn.close()
+    files_col.insert_one({
+        "_id": file_id,
+        "original_name": original_name,
+        "stored_name": stored_name,
+        "size": 0,
+        "status": "uploading",
+        "node": node,
+        "access_policy": access_policy,
+        "created_at": now,
+        "updated_at": now,
+        "download_count": 0
+    })
 
 
 def update_file_status(file_id, status, size=None):
-    conn = get_connection()
-    cursor = conn.cursor()
-
     now = datetime.now().isoformat()
 
-    if size is not None:
-        cursor.execute("""
-        UPDATE files
-        SET status = ?, size = ?, updated_at = ?
-        WHERE file_id = ?
-        """, (status, size, now, file_id))
-    else:
-        cursor.execute("""
-        UPDATE files
-        SET status = ?, updated_at = ?
-        WHERE file_id = ?
-        """, (status, now, file_id))
+    update_data = {
+        "status": status,
+        "updated_at": now
+    }
 
-    conn.commit()
-    conn.close()
+    if size is not None:
+        update_data["size"] = size
+
+    files_col.update_one(
+        {"_id": file_id},
+        {"$set": update_data}
+    )
 
 
 def get_file(file_id):
-    conn = get_connection()
-    cursor = conn.cursor()
+    doc = files_col.find_one({"_id": file_id})
 
-    cursor.execute("""
-    SELECT file_id, original_name, stored_name, size,
-           status, node, access_policy,
-           created_at, updated_at, download_count
-    FROM files
-    WHERE file_id = ?
-    """, (file_id,))
-
-    row = cursor.fetchone()
-    conn.close()
-
-    if row is None:
+    if doc is None:
         return None
 
-    columns = [
-        "file_id",
-        "original_name",
-        "stored_name",
-        "size",
-        "status",
-        "node",
-        "access_policy",
-        "created_at",
-        "updated_at",
-        "download_count"
-    ]
-
-    return dict(zip(columns, row))
+    doc["file_id"] = doc["_id"]
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return doc
 
 
 def get_all_files():
-    conn = get_connection()
-    cursor = conn.cursor()
+    docs = list(
+        files_col.find().sort("created_at", -1)
+    )
 
-    cursor.execute("""
-    SELECT file_id, original_name, size, status,
-           node, access_policy, created_at, download_count
-    FROM files
-    ORDER BY created_at DESC
-    """)
+    for doc in docs:
+        doc["file_id"] = doc["_id"]
+        if "_id" in doc:
+            doc["_id"] = str(doc["_id"])
 
-    rows = cursor.fetchall()
-    conn.close()
-
-    columns = [
-        "file_id",
-        "original_name",
-        "size",
-        "status",
-        "node",
-        "access_policy",
-        "created_at",
-        "download_count"
-    ]
-
-    return [dict(zip(columns, row)) for row in rows]
+    return docs
 
 
 def increment_download_count(file_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    UPDATE files
-    SET download_count = download_count + 1
-    WHERE file_id = ?
-    """, (file_id,))
-
-    conn.commit()
-    conn.close()
+    files_col.update_one(
+        {"_id": file_id},
+        {"$inc": {"download_count": 1}}
+    )
 
 
 def update_node_status(node_name, status):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    UPDATE nodes
-    SET status = ?
-    WHERE node_name = ?
-    """, (status, node_name))
-
-    conn.commit()
-    conn.close()
+    nodes_col.update_one(
+        {"_id": node_name},
+        {"$set": {"status": status}}
+    )
 
 
 def get_nodes():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    SELECT node_name, status, current_files
-    FROM nodes
-    """)
-
-    rows = cursor.fetchall()
-    conn.close()
+    docs = list(nodes_col.find())
 
     return [
         {
-            "node_name": row[0],
-            "status": row[1],
-            "current_files": row[2]
+            "node_name": doc["_id"],
+            "status": doc["status"],
+            "current_files": doc["current_files"]
         }
-        for row in rows
+        for doc in docs
     ]
 
 
 def update_node_file_count(node_name, change):
-    conn = get_connection()
-    cursor = conn.cursor()
+    node = nodes_col.find_one({"_id": node_name})
 
-    cursor.execute("""
-    UPDATE nodes
-    SET current_files = MAX(0, current_files + ?)
-    WHERE node_name = ?
-    """, (change, node_name))
+    if node:
+        new_count = max(
+            0,
+            node.get("current_files", 0) + change
+        )
 
-    conn.commit()
-    conn.close()
+        nodes_col.update_one(
+            {"_id": node_name},
+            {"$set": {"current_files": new_count}}
+        )
 
 
 def save_event(event_type, file_id, message):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    INSERT INTO events (event_type, file_id, message, created_at)
-    VALUES (?, ?, ?, ?)
-    """, (
-        event_type,
-        file_id,
-        message,
-        datetime.now().isoformat()
-    ))
-
-    conn.commit()
-    conn.close()
+    events_col.insert_one({
+        "event_type": event_type,
+        "file_id": file_id,
+        "message": message,
+        "created_at": datetime.now().isoformat()
+    })
 
 
 def get_events():
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    SELECT id, event_type, file_id, message, created_at
-    FROM events
-    ORDER BY id DESC
-    LIMIT 20
-    """)
-
-    rows = cursor.fetchall()
-    conn.close()
-
-    return [
-        {
-            "id": row[0],
-            "event_type": row[1],
-            "file_id": row[2],
-            "message": row[3],
-            "created_at": row[4]
-        }
-        for row in rows
-    ]
-
-def delete_file_record(file_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        "DELETE FROM files WHERE file_id = ?",
-        (file_id,)
+    docs = list(
+        events_col.find().sort("_id", -1).limit(20)
     )
 
-    conn.commit()
-    conn.close()
+    for doc in docs:
+        doc["id"] = str(doc["_id"])
+        if "_id" in doc:
+            del doc["_id"]
+
+    return docs
+
+
+def delete_file_record(file_id):
+    files_col.delete_one({"_id": file_id})
