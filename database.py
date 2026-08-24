@@ -3,8 +3,20 @@ import hashlib
 from datetime import datetime
 from pymongo import MongoClient
 
-MONGO_URI = "mongodb+srv://sk5263748_db_user:J0JgYnYVAfN2LZX9@cluster0.ny90gvb.mongodb.net/"
-DB_NAME = "file_sharing_platform"
+# Load custom .env parsing if it exists
+if os.path.exists(".env"):
+    with open(".env", "r") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, val = line.split("=", 1)
+                os.environ[key.strip()] = val.strip()
+
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb+srv://sk5263748_db_user:J0JgYnYVAfN2LZX9@cluster0.ny90gvb.mongodb.net/"
+)
+DB_NAME = os.getenv("DB_NAME", "file_sharing_platform")
 
 # Global client
 client = MongoClient(MONGO_URI)
