@@ -68,6 +68,7 @@
 
         input[type="file"],
         input[type="text"],
+        input[type="password"],
         select,
         button {
             padding: 10px 14px;
@@ -248,13 +249,19 @@
 
 <body>
 
-<header>
+<header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
 
-    <h1>📁 File Sharing Platform</h1>
-
-    <p>
-        Event-Driven Local Cloud Storage System with Policy Control
-    </p>
+    <div>
+        <h1>📁 File Sharing Platform</h1>
+        <p>
+            Event-Driven Local Cloud Storage System with Policy Control
+        </p>
+    </div>
+    
+    <div id="userInfoHeader" style="display: none; text-align: right; color: white;">
+        <span id="loggedInUserDisplay" style="font-weight: bold; margin-right: 15px; font-size: 16px;"></span>
+        <button class="danger small-button" onclick="handleLogout()" style="font-weight: bold; padding: 6px 12px;">Logout</button>
+    </div>
 
 </header>
 
@@ -262,258 +269,266 @@
 <div class="container">
 
     <!-- ========================================= -->
-    <!-- USER AUTHENTICATION -->
+    <!-- LOGIN SCREEN -->
     <!-- ========================================= -->
-    <div class="card">
-        <h2>👤 User Authentication</h2>
-        <div style="display: flex; gap: 15px; align-items: center; margin-top: 10px;">
-            <label for="usernameInput" style="font-weight: bold;">Username:</label>
-            <input type="text" id="usernameInput" value="guest" style="padding: 10px; width: 180px; border-radius: 6px; border: 1px solid #ccc;">
-            <button onclick="changeUser()" style="padding: 10px 18px;">Switch User</button>
-            <span id="currentUserDisplay" style="font-weight: bold; margin-left: 10px; color: #2563eb;">Logged in as: guest</span>
+    <div id="loginScreen" class="card" style="max-width: 450px; margin: 60px auto; padding: 30px;">
+        <h2 style="text-align: center; margin-bottom: 20px;">🔑 Sign In / Register</h2>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <input type="text" id="authUsername" placeholder="Username" style="width: 100%;">
+            <input type="password" id="authPassword" placeholder="Password" style="width: 100%;">
+            <button id="loginBtn" onclick="handleLogin()" style="width: 100%; font-weight: bold; padding: 12px;">Login</button>
+            <button id="registerBtn" class="success" onclick="handleRegister()" style="width: 100%; font-weight: bold; padding: 12px;">Register New Account</button>
+            <div id="authMessage" class="message" style="display: none; text-align: center;"></div>
         </div>
     </div>
 
 
     <!-- ========================================= -->
-    <!-- UPLOAD -->
+    <!-- DASHBOARD SCREEN -->
     <!-- ========================================= -->
+    <div id="dashboardScreen" style="display: none;">
 
-    <div class="card">
+        <!-- ========================================= -->
+        <!-- UPLOAD -->
+        <!-- ========================================= -->
 
-        <h2>🚀 Upload File</h2>
+        <div class="card">
 
-
-        <div class="upload-box">
-
-            <input
-                type="file"
-                id="fileInput"
-            >
+            <h2>🚀 Upload File</h2>
 
 
-            <select id="policy">
+            <div class="upload-box">
 
-                <option value="public">
-                    Public (Read-only, anyone can access)
-                </option>
-
-                <option value="private">
-                    Private (Only Owner can access)
-                </option>
-
-                <option value="read">
-                    Read (Anyone can read/download)
-                </option>
-
-                <option value="write">
-                    Write (Anyone can read, modify/update)
-                </option>
-
-            </select>
+                <input
+                    type="file"
+                    id="fileInput"
+                >
 
 
-            <button
-                id="uploadButton"
-                onclick="startUpload()">
+                <select id="policy">
 
-                Upload
+                    <option value="public">
+                        Public (Read-only, anyone can access)
+                    </option>
 
-            </button>
+                    <option value="private">
+                        Private (Only Owner can access)
+                    </option>
 
-        </div>
+                    <option value="read">
+                        Read (Anyone can read/download)
+                    </option>
+
+                    <option value="write">
+                        Write (Anyone can read, modify/update)
+                    </option>
+
+                </select>
 
 
-        <div
-            id="uploadMessage"
-            class="message">
-        </div>
+                <button
+                    id="uploadButton"
+                    onclick="startUpload()">
+
+                    Upload
+
+                </button>
+
+            </div>
 
 
-        <div
-            id="progressContainer"
-            class="progress-container">
+            <div
+                id="uploadMessage"
+                class="message">
+            </div>
 
-            <div class="progress-bar">
+
+            <div
+                id="progressContainer"
+                class="progress-container">
+
+                <div class="progress-bar">
+
+                    <div
+                        id="progressFill"
+                        class="progress-fill">
+                    </div>
+
+                </div>
+
 
                 <div
-                    id="progressFill"
-                    class="progress-fill">
+                    id="progressText"
+                    class="progress-text">
+
+                    0%
+
                 </div>
 
             </div>
 
 
             <div
-                id="progressText"
-                class="progress-text">
+                id="resumeBox"
+                class="resume-box">
 
-                0%
+                <strong>
+                    Upload interrupted.
+                </strong>
+
+                <p id="resumeText">
+                    You can resume the upload.
+                </p>
+
+                <br>
+
+                <button
+                    class="success"
+                    onclick="resumeUpload()">
+
+                    Resume Upload
+
+                </button>
 
             </div>
 
         </div>
 
 
-        <div
-            id="resumeBox"
-            class="resume-box">
+        <!-- ========================================= -->
+        <!-- PERFORMANCE -->
+        <!-- ========================================= -->
 
-            <strong>
-                Upload interrupted.
-            </strong>
+        <div class="card">
 
-            <p id="resumeText">
-                You can resume the upload.
-            </p>
+            <h2>📊 Performance Statistics</h2>
 
-            <br>
 
-            <button
-                class="success"
-                onclick="resumeUpload()">
+            <div class="stats">
 
-                Resume Upload
 
-            </button>
+                <div class="stat">
+
+                    <h3 id="totalFiles">
+                        0
+                    </h3>
+
+                    <p>Total Files</p>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <h3 id="completedFiles">
+                        0
+                    </h3>
+
+                    <p>Completed</p>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <h3 id="downloads">
+                        0
+                    </h3>
+
+                    <p>Downloads</p>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <h3 id="storageSize">
+                        0 Bytes
+                    </h3>
+
+                    <p>Total Storage</p>
+
+                </div>
+
+
+            </div>
 
         </div>
 
-    </div>
+
+        <!-- ========================================= -->
+        <!-- STORAGE NODES -->
+        <!-- ========================================= -->
+
+        <div class="card">
+
+            <h2>⚙️ Storage Nodes</h2>
 
 
-    <!-- ========================================= -->
-    <!-- PERFORMANCE -->
-    <!-- ========================================= -->
-
-    <div class="card">
-
-        <h2>📊 Performance Statistics</h2>
-
-
-        <div class="stats">
-
-
-            <div class="stat">
-
-                <h3 id="totalFiles">
-                    0
-                </h3>
-
-                <p>Total Files</p>
-
+            <div
+                id="nodes"
+                class="nodes">
             </div>
-
-
-            <div class="stat">
-
-                <h3 id="completedFiles">
-                    0
-                </h3>
-
-                <p>Completed</p>
-
-            </div>
-
-
-            <div class="stat">
-
-                <h3 id="downloads">
-                    0
-                </h3>
-
-                <p>Downloads</p>
-
-            </div>
-
-
-            <div class="stat">
-
-                <h3 id="storageSize">
-                    0 Bytes
-                </h3>
-
-                <p>Total Storage</p>
-
-            </div>
-
 
         </div>
 
-    </div>
+
+        <!-- ========================================= -->
+        <!-- FILES -->
+        <!-- ========================================= -->
+
+        <div class="card">
+
+            <h2>📂 Available Files</h2>
 
 
-    <!-- ========================================= -->
-    <!-- STORAGE NODES -->
-    <!-- ========================================= -->
+            <table>
 
-    <div class="card">
+                <thead>
 
-        <h2>⚙️ Storage Nodes</h2>
+                    <tr>
+
+                        <th>File Name</th>
+
+                        <th>Size</th>
+
+                        <th>Status</th>
+
+                        <th>Node</th>
+
+                        <th>Policy</th>
+
+                        <th>Owner</th>
+
+                        <th>Downloads</th>
+
+                        <th>Action</th>
+
+                    </tr>
+
+                </thead>
 
 
-        <div
-            id="nodes"
-            class="nodes">
+                <tbody id="fileTable">
+
+                </tbody>
+
+            </table>
+
         </div>
 
-    </div>
 
+        <!-- ========================================= -->
+        <!-- EVENTS -->
+        <!-- ========================================= -->
 
-    <!-- ========================================= -->
-    <!-- FILES -->
-    <!-- ========================================= -->
+        <div class="card">
 
-    <div class="card">
+            <h2>📜 Event Log</h2>
 
-        <h2>📂 Available Files</h2>
+            <div id="events" style="max-height: 300px; overflow-y: auto;">
+            </div>
 
-
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>File Name</th>
-
-                    <th>Size</th>
-
-                    <th>Status</th>
-
-                    <th>Node</th>
-
-                    <th>Policy</th>
-
-                    <th>Owner</th>
-
-                    <th>Downloads</th>
-
-                    <th>Action</th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody id="fileTable">
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-
-    <!-- ========================================= -->
-    <!-- EVENTS -->
-    <!-- ========================================= -->
-
-    <div class="card">
-
-        <h2>📜 Event Log</h2>
-
-        <div id="events" style="max-height: 300px; overflow-y: auto;">
         </div>
 
     </div>
@@ -542,19 +557,112 @@ window.fetch = function(url, options = {}) {
 
 
 // ==================================================
-// USER CONFIGURATION
+// SESSION CONTROL
 // ==================================================
-function changeUser() {
-    const input = document.getElementById("usernameInput").value.trim() || "guest";
-    localStorage.setItem("username", input);
-    document.getElementById("currentUserDisplay").innerText = "Logged in as: " + input;
-    loadAll();
+function checkAuth() {
+    const username = localStorage.getItem("username");
+    const loginScreen = document.getElementById("loginScreen");
+    const dashboardScreen = document.getElementById("dashboardScreen");
+    const userInfoHeader = document.getElementById("userInfoHeader");
+    const userDisplay = document.getElementById("loggedInUserDisplay");
+
+    if (username) {
+        loginScreen.style.display = "none";
+        dashboardScreen.style.display = "block";
+        userInfoHeader.style.display = "block";
+        userDisplay.innerText = "Welcome, " + username;
+        loadAll();
+    } else {
+        loginScreen.style.display = "block";
+        dashboardScreen.style.display = "none";
+        userInfoHeader.style.display = "none";
+    }
 }
 
-// Initial setup on load
-const savedUser = localStorage.getItem("username") || "guest";
-document.getElementById("usernameInput").value = savedUser;
-document.getElementById("currentUserDisplay").innerText = "Logged in as: " + savedUser;
+async function handleLogin() {
+    const user = document.getElementById("authUsername").value.trim();
+    const pass = document.getElementById("authPassword").value;
+    const msg = document.getElementById("authMessage");
+    
+    if (!user || !pass) {
+        msg.style.display = "block";
+        msg.className = "message danger";
+        msg.innerText = "Please fill in all fields.";
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append("username", user);
+    formData.append("password", pass);
+    
+    try {
+        const response = await fetch("/login", {
+            method: "POST",
+            body: formData
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            localStorage.setItem("username", data.username);
+            msg.style.display = "none";
+            document.getElementById("authUsername").value = "";
+            document.getElementById("authPassword").value = "";
+            checkAuth();
+        } else {
+            msg.style.display = "block";
+            msg.className = "message danger";
+            msg.innerText = data.detail || "Login failed.";
+        }
+    } catch (e) {
+        msg.style.display = "block";
+        msg.className = "message danger";
+        msg.innerText = "Error connecting to server.";
+    }
+}
+
+async function handleRegister() {
+    const user = document.getElementById("authUsername").value.trim();
+    const pass = document.getElementById("authPassword").value;
+    const msg = document.getElementById("authMessage");
+    
+    if (!user || !pass) {
+        msg.style.display = "block";
+        msg.className = "message danger";
+        msg.innerText = "Please fill in all fields.";
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append("username", user);
+    formData.append("password", pass);
+    
+    try {
+        const response = await fetch("/register", {
+            method: "POST",
+            body: formData
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            msg.style.display = "block";
+            msg.className = "message success";
+            msg.innerText = "Account created successfully! You can now log in.";
+        } else {
+            msg.style.display = "block";
+            msg.className = "message danger";
+            msg.innerText = data.detail || "Registration failed.";
+        }
+    } catch (e) {
+        msg.style.display = "block";
+        msg.className = "message danger";
+        msg.innerText = "Error connecting to server.";
+    }
+}
+
+function handleLogout() {
+    localStorage.removeItem("username");
+    checkAuth();
+}
 
 
 // ==================================================
@@ -1202,7 +1310,7 @@ async function downloadFile(fileId) {
         let filename = "download";
         const disposition = response.headers.get("Content-Disposition");
         if (disposition && disposition.indexOf("attachment") !== -1) {
-            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            const filenameRegex = /filename[^;=\n]*=((['']).*?\2|[^;\n]*)/;
             const matches = filenameRegex.exec(disposition);
             if (matches != null && matches[1]) { 
                 filename = matches[1].replace(/['"]/g, '');
@@ -1805,7 +1913,7 @@ function checkPreviousUpload() {
 // INITIAL LOAD
 // ==================================================
 
-loadAll();
+checkAuth();
 
 checkPreviousUpload();
 
@@ -1813,7 +1921,11 @@ checkPreviousUpload();
 // Refresh dashboard every 5 seconds
 
 setInterval(
-    loadAll,
+    () => {
+        if (localStorage.getItem("username")) {
+            loadAll();
+        }
+    },
     5000
 );
 

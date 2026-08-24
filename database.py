@@ -1,4 +1,5 @@
 import os
+import hashlib
 from datetime import datetime
 from pymongo import MongoClient
 
@@ -13,6 +14,30 @@ db = client[DB_NAME]
 files_col = db["files"]
 events_col = db["events"]
 nodes_col = db["nodes"]
+users_col = db["users"]
+
+
+def hash_password(password):
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
+def create_user(username, password):
+    if users_col.find_one({"_id": username}):
+        return False
+
+    users_col.insert_one({
+        "_id": username,
+        "password_hash": hash_password(password),
+        "created_at": datetime.now().isoformat()
+    })
+    return True
+
+
+def authenticate_user(username, password):
+    user = users_col.find_one({"_id": username})
+    if not user:
+        return False
+    return user["password_hash"] == hash_password(password)
 
 
 def initialize_database():

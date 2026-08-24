@@ -26,6 +26,8 @@ from database import (
     get_nodes,
     get_events,
     delete_file_record,
+    create_user,
+    authenticate_user,
 )
 
 from storage_manager import (
@@ -76,6 +78,67 @@ def home():
     return FileResponse(
         "static/index.html"
     )
+
+
+# --------------------------------------------------
+# USER REGISTER & LOGIN
+# --------------------------------------------------
+
+@app.post("/register")
+def register(
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    username = username.strip()
+    if not username or not password:
+        raise HTTPException(
+            status_code=400,
+            detail="Username and password are required"
+        )
+
+    success = create_user(username, password)
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Username already exists"
+        )
+
+    event_system.publish(
+        "USER_REGISTERED",
+        None,
+        f"User '{username}' registered successfully"
+    )
+
+    return {
+        "success": True,
+        "message": f"User '{username}' registered successfully"
+    }
+
+
+@app.post("/login")
+def login_endpoint(
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    username = username.strip()
+    success = authenticate_user(username, password)
+    if not success:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password"
+        )
+
+    event_system.publish(
+        "USER_LOGGED_IN",
+        None,
+        f"User '{username}' logged in"
+    )
+
+    return {
+        "success": True,
+        "message": f"User '{username}' logged in successfully",
+        "username": username
+    }
 
 
 # --------------------------------------------------
